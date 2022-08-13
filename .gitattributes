@@ -1,1 +1,13 @@
 ref.fsa filter=lfs diff=lfs merge=lfs -text
+ref.fsa.fai.rev.1.bt2 filter=lfs diff=lfs merge=lfs -text
+ref.fsa.pac filter=lfs diff=lfs merge=lfs -text
+ref.fsa.sa filter=lfs diff=lfs merge=lfs -text
+ref.fsa.amb filter=lfs diff=lfs merge=lfs -text
+ref.fsa.bwt filter=lfs diff=lfs merge=lfs -text
+ref.fsa.fai.1.bt2 filter=lfs diff=lfs merge=lfs -text
+ref.fsa.fai.2.bt2 filter=lfs diff=lfs merge=lfs -text
+ref.fsa.fai.rev.2.bt2 filter=lfs diff=lfs merge=lfs -text
+ref.fsa.ann filter=lfs diff=lfs merge=lfs -text
+ref.fsa.fai filter=lfs diff=lfs merge=lfs -text
+ref.fsa.fai.3.bt2 filter=lfs diff=lfs merge=lfs -text
+ref.fsa.fai.4.bt2 filter=lfs diff=lfs merge=lfs -text

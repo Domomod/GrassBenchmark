@@ -24,7 +24,7 @@ Help()
    echo -e "r     Path to reads1 (fastq format)"
    echo -e "R     Path to reads2 (fastq format)"
    echo -e "l     Value of read length"
-   echo -e "h     Show this helpe message"
+   echo -e "h     Show this help message"
    echo -e ${NC}
 }
 
@@ -98,12 +98,10 @@ echo -e "Genome file (realpath): \"$CX_REFERENCE\""
 echo -e "Read1 file (realpath): \"$CX_READS_1\""
 echo -e "Read2 file (realpath): \"$CX_READS_2\""
 
-
+mkdir pindel
+cd pindel
 
 echo -e ${NC}
-
-mkdir -p pindel
-cd pindel
 
 #Alignment using bwa
 export CX_SAM=alignments.bwa.sam
@@ -124,46 +122,47 @@ echo -e "[+] Run samtools index"
 urun "samtools index $CX_BAM_SORTED $CX_BAM_BAI"
 
 #Running pindel
-export CX_PINDEL_DIR=pindel.pindel
+export CX_PINDEL_DIR=out.pindel
 export CX_PINDEL_OUT=out.pindel
-export CX_PINDEL_VCF_DIR=pindel.vcd
+export CX_PINDEL_VCF_DIR=out.vcf
 export CX_PINDEL_VCF_OUT=out.vcf
 echo -e "[+] Run pindel"
-urun "pindel -f $CX_REFERENCE -i <( echo $CX_BAM_SORTED $CX_READ_LENGTH sample) -o out.pindel"
-mkdir $CX_PINDEL_DIR
-mv ${CX_PINDEL_OUT}* $CX_PINDEL_DIR
+mkdir -p $CX_PINDEL_DIR
+urun "pindel -f $CX_REFERENCE -i <( echo $CX_BAM_SORTED $CX_READ_LENGTH sample) -o ${CX_PINDEL_DIR}/${CX_PINDEL_OUT}"
 
-mkdir pindel.vcf
+mkdir -p ${CX_PINDEL_VCF_DIR}
 echo -e "[+] Run pindel2vcf"
-urun "pindel2vcf -co 2 -P pindel.out/out.pindel -r $CX_REFERENCE -R yeast -d 20220713 -v pindel.vcf/pindel.vcf"
+urun "pindel2vcf -co 2 -P ${CX_PINDEL_DIR}/${CX_PINDEL_OUT} -r $CX_REFERENCE -R yeast -d 20220713 -v ${CX_PINDEL_VCF_DIR}/${CX_PINDEL_VCF_OUT}"
 
-cd pindel.vcf || exit
+cd ${CX_PINDEL_VCF_DIR} || exit
 
-
-echo -e "[+] Run bwa mem"
-awk '
+echo -e "[+] Run awk - replacement"
+awk ' 
 /^##/ {print}
 /^.*<RPL>/ {print}
-' pindel.vcf > replacement.vcf
+' ${CX_PINDEL_VCF_OUT} > replacement.vcf
 
+echo -e "[+] Run awk - duplication"
 awk '
 /^##/ {print}
 /^.*<DUP:TANDEM>/ {print}
-' pindel.vcf > duplication.vcf
+' ${CX_PINDEL_VCF_OUT} > duplication.vcf
 
-
+echo -e "[+] Run awk - deletion"
 awk '
 /^##/ {print}
 /^.*<DEL>/ {print}
-' pindel.vcf > deletion.vcf
+' ${CX_PINDEL_VCF_OUT} > deletion.vcf
 
+echo -e "[+] Run awk - inversion"
 awk '
 /^##/ {print}
 /^.*<INV>/ {print}
-' pindel.vcf > inversion.vcf
+' ${CX_PINDEL_VCF_OUT} > inversion.vcf
 
+echo -e "[+] Run awk - insertion"
 awk '
 /^##/ {print}
 /^.*<INS>/ {print}
-' pindel.vcf > insertion.vcf
+' ${CX_PINDEL_VCF_OUT} > insertion.vcf
 
