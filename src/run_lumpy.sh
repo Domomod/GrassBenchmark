@@ -1,8 +1,12 @@
 #!/bin/bash
 
-RED='\033[0;31m'
-LCY='\033[1;36m' # Light Cyan
-NC='\033[0m' # No Color
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+if [[ ":${PATH}:" != *":${SCRIPT_DIR}:"* ]]; then
+  echo -e "${B_RED}[ERROR] Please add \"${SCRIPT_DIR}\" to your path and run the script again.${NC}"
+  exit 1
+fi
+
+. common_color.sh
 
 Help()
 {
@@ -20,86 +24,60 @@ Help()
    echo -e ${NC}
 }
 
+. common_parse.sh
 
-if [[ $# -eq 0 ]] ; then
-    echo -e "${RED}[Warning] No imput parameters provided. Displaying help message:${NC}"
-    Help
-    exit 0
-fi
+#[CONFUSING] getopt's ':' means "no argument" for LONG options, and "requires argument" for SHORT option 
+LONG_LIST=("allow-overwrite:")
+SHORT_LIST=("g:l:i:r:R:h")
 
-while getopts 'g:l:i:r:R:h' OPTION; do
-  case "$OPTION" in
+opts=$(getopt \
+  --longoptions "$(printf "%s:," "${LONG_LIST[@]}")" \
+  --name "$(basename "$0")" \
+  --options "${SHORT_LIST[@]}" \
+  -- "$@"
+) || exit
+
+eval set --$opts
+
+while [[ $# -gt 0 ]]; do
+    OPTION=${1##-}
+    OPTION=${OPTION##-}
+    OPTARG=$2
+
+    ParseGetOpts
     
-    g)
-      echo "Genome file: \"$OPTARG\""
-      CX_REFERENCE=$OPTARG;;
-    r)
-      echo "Reads 1 file: \"$OPTARG\""
-      CX_READS_1=$OPTARG;;
-    R)
-      echo "Reads 2 file: \"$OPTARG\""
-      CX_READS_2=$OPTARG;;   
-    l)
-      echo "Read length: \"$OPTARG\""
-      CX_READ_LENGTH=$OPTARG;;
-    h)
-      Help
-	  exit 0
-      ;;
-    ?)
-      Help
-      exit 1
-      ;;
-  esac
+    if [[ ! -z ${PARSE_BREAK} ]] && [[ ${PARSE_BREAK} == true ]]; then
+      break
+    fi
+    shift 2
 done
 
-#Sanitize input
-if [ -z ${CX_REFERENCE} ] || [ -z ${CX_READS_1} ] || [ -z ${CX_READS_2} ]; then
-    echo -e ${RED}
-    echo "[Warning] Missing required arguments: "
-    [ -z ${CX_REFERENCE} ] &&   echo -e "\t[-g] Path to genome (fasta format)"
-    [ -z ${CX_READS_1} ] &&     echo -e "\t[-r] Path to reads1 (fastq format)"
-    [ -z ${CX_READS_2} ] &&     echo -e "\t[-R] Path to reads2 (fastq format)"
-    [ -z ${CX_READ_LENGTH} ] && echo -e "\t[-l] Value of read length"
-    echo -e ${NC}
-    CX_BENCHMARK_INPUT_ERROR=true
-fi
-
-if [ -f ${CX_REFERENCE} ] || [ -f ${CX_READS_1} ] || [ -f ${CX_READS_2} ]; then
-    echo -e ${RED}
-    echo "[Warning] Following files do not exist: "
-    [ ! -f ${CX_REFERENCE} ] && [ ! -z ${CX_REFERENCE} ] && echo -e "\t[-g] Path to genome (fasta format)"
-    [ ! -f ${CX_REFERENCE} ] && [ ! -z ${CX_REFERENCE} ] && echo -e "\t     Path: ${CX_REFERENCE}"
-    [ ! -f ${CX_READS_1}   ] && [ ! -z ${CX_READS_1}   ] && echo -e "\t[-r] Path to reads1 (fastq format)"
-    [ ! -f ${CX_READS_1}   ] && [ ! -z ${CX_READS_1}   ] && echo -e "\t     Path: ${CX_READS_1}"
-    [ ! -f ${CX_READS_2}   ] && [ ! -z ${CX_READS_2}   ] && echo -e "\t[-R] Path to reads2 (fastq format)"
-    [ ! -f ${CX_READS_2}   ] && [ ! -z ${CX_READS_2}   ] && echo -e "\t     Path: ${CX_READS_2}"
-
-    echo -e ${NC} 
-fi
-
-if [ ${CX_BENCHMARK_INPUT_ERROR} = true  ]; then
-    Help
-    exit 1
-fi
-
-CX_REFERENCE=$(realpath ${CX_REFERENCE})
-CX_READS_1=$(realpath ${CX_READS_1})
-CX_READS_2=$(realpath ${CX_READS_2})
+. common_sanitize.sh
 
 #Exit on error
 set -o errexit
 
+if [[ -d lumpy  ]] && [[ ! -z ${CX_ALLOW_OVERWITE+x} ]]; then
+  echo -e "${YELLOW}[Warning] Flag \"allow-overwite\" set to true, recurisvely removing $PWD/lumpy directory.${NC}"
+  rm -rf lumpy
+fi 
+
+echo -e "${LCY}[+] Creating lumpy directory [PWD is \"${PWD}\"]${NC}"
 mkdir lumpy
-cd lumpy || exit 1
 
-urun "speedseq align -R '@RG\tID:id\tSM:sample\tLB:lib' $CX_REFERENCE $CX_READS_1 $CX_READS_2"
+echo -e "${LCY}[+] Going into lumpy directory [PWD is \"${PWD}\"]${NC}"
+cd lumpy
 
-export CX_READS_BAM=${CX_READS_1##*/}.fq.bam
+echo -e "${LCY}[+] Running speedseq align [PWD is \"${PWD}\"]${NC}"
+#urun "speedseq align -R '@RG\tID:id\tSM:sample\tLB:lib' $CX_REFERENCE $CX_READS_1 $CX_READS_2"
+
+export CX_READS_BAM=${CX_READS_1##*/}.bam
 export CX_DISCORDANTS=${CX_READS_1##*/}.splitters.bam
 export CX_SPLITTERS=${CX_READS_1##*/}.discordants.bam
 export CX_LUMPY_VCF=lumpy.vcf
 
-urun "lumpyexpress -B ${CX_READS_BAM} -S ${CX_SPLITTERS} -D ${CX_DISCORDANTS} -o ${CX_LUMPY_VCF}"
+echo -e "${LCY}[+] Running lumpyexpress${NC}"
+#urun "lumpyexpress -B ${CX_READS_BAM} -S ${CX_SPLITTERS} -D ${CX_DISCORDANTS} -o ${CX_LUMPY_VCF}"
 
-cd lumpy
+echo 
+echo -e "${B_GRN}[SUCCESS] Running $0 succesfull ${NC}"

@@ -1,16 +1,13 @@
 #!/bin/bash
-set -o errexit
 
-RED='\033[0;31m'
-LCY='\033[1;36m' # Light Cyan
-NC='\033[0m' # No Color
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+if [[ ":${PATH}:" != *":${SCRIPT_DIR}:"* ]]; then
+  echo -e "${B_RED}[ERROR] Please add \"${SCRIPT_DIR}\" to your path and run the script again.${NC}"
+  exit 1
+fi
 
-command 2> >(sed $'s,.*,\e[31m&\e[m,'>&2)
+. common_color.sh
 
-Cleanup() {
-    echo -e ${NC}
-}
-trap Cleanup EXIT
 
 Help()
 {
@@ -28,97 +25,64 @@ Help()
    echo -e ${NC}
 }
 
+. common_parse.sh
 
-if [[ $# -eq 0 ]] ; then
-    echo -e "${RED}[Warning] No imput parameters provided. Displaying help message:${NC}"
-    Help
-    exit 0
-fi
+#[CONFUSING] getopt's ':' means "no argument" for LONG options, and "requires argument" for SHORT option 
+LONG_LIST=("allow-overwrite:")
+SHORT_LIST=("g:l:i:r:R:h")
 
-while getopts 'g:l:i:r:R:h' OPTION; do
-  case "$OPTION" in
+opts=$(getopt \
+  --longoptions "$(printf "%s:," "${LONG_LIST[@]}")" \
+  --name "$(basename "$0")" \
+  --options "${SHORT_LIST[@]}" \
+  -- "$@"
+) || exit
+
+eval set --$opts
+
+while [[ $# -gt 0 ]]; do
+    OPTION=${1##-}
+    OPTION=${OPTION##-}
+    OPTARG=$2
+
+    ParseGetOpts
     
-    g)
-      echo -e "Genome file: \"$OPTARG\""
-      CX_REFERENCE=$OPTARG;;
-    r)
-      echo -e "Reads 1 file: \"$OPTARG\""
-      CX_READS_1=$OPTARG;;
-    R)
-      echo -e "Reads 2 file: \"$OPTARG\""
-      CX_READS_2=$OPTARG;;   
-    l)
-      echo -e "Read length: \"$OPTARG\""
-      CX_READ_LENGTH=$OPTARG;;
-    h)
-      Help
-	  exit 0
-      ;;
-    ?)
-      Help
-      exit 1
-      ;;
-  esac
+    if [[ ! -z ${PARSE_BREAK} ]] && [[ ${PARSE_BREAK} == true ]]; then
+      break
+    fi
+    shift 2
 done
 
-#Sanitize input
-if [ -z ${CX_REFERENCE} ] || [ -z ${CX_READS_1} ] || [ -z ${CX_READS_2} ]; then
-    echo -e ${RED}
-    echo "[Warning] Missing required arguments: "
-    [ -z ${CX_REFERENCE} ] &&   echo -e "\t[-g] Path to genome (fasta format)"
-    [ -z ${CX_READS_1} ] &&     echo -e "\t[-r] Path to reads1 (fastq format)"
-    [ -z ${CX_READS_2} ] &&     echo -e "\t[-R] Path to reads2 (fastq format)"
-    [ -z ${CX_READ_LENGTH} ] && echo -e "\t[-l] Value of read length"
-    echo -e ${NC}
-    CX_BENCHMARK_INPUT_ERROR=true
-fi
+. common_sanitize.sh
 
-if [ ! -f ${CX_REFERENCE} ] || [ ! -f ${CX_READS_1} ] || [ ! -f ${CX_READS_2} ]; then
-    echo -e ${RED}
-    echo "[Warning] Following files do not exist: "
-    [ ! -f ${CX_REFERENCE} ] && [ ! -z ${CX_REFERENCE} ] && echo -e "\t[-g] Path to genome (fasta format)"
-    [ ! -f ${CX_REFERENCE} ] && [ ! -z ${CX_REFERENCE} ] && echo -e "\t     Path: ${CX_REFERENCE}"
-    [ ! -f ${CX_READS_1}   ] && [ ! -z ${CX_READS_1}   ] && echo -e "\t[-r] Path to reads1 (fastq format)"
-    [ ! -f ${CX_READS_1}   ] && [ ! -z ${CX_READS_1}   ] && echo -e "\t     Path: ${CX_READS_1}"
-    [ ! -f ${CX_READS_2}   ] && [ ! -z ${CX_READS_2}   ] && echo -e "\t[-R] Path to reads2 (fastq format)"
-    [ ! -f ${CX_READS_2}   ] && [ ! -z ${CX_READS_2}   ] && echo -e "\t     Path: ${CX_READS_2}"
+#Exit on error
+set -o errexit
 
-    echo -e ${NC}
-fi
-
-if [ ! -z ${CX_BENCHMARK_INPUT_ERROR} ] && [ ${CX_BENCHMARK_INPUT_ERROR} = true  ]; then
-    Help
-    exit 1
-fi
-
-CX_REFERENCE=$(realpath ${CX_REFERENCE})
-CX_READS_1=$(realpath ${CX_READS_1})
-CX_READS_2=$(realpath ${CX_READS_2})
-echo -e "Genome file (realpath): \"$CX_REFERENCE\""
-echo -e "Read1 file (realpath): \"$CX_READS_1\""
-echo -e "Read2 file (realpath): \"$CX_READS_2\""
+if [[ -d pindel  ]] && [[ ! -z ${CX_ALLOW_OVERWITE+x} ]]; then
+  echo -e "${YELLOW}[Warning] Flag \"allow-overwite\" set to true, recurisvely removing $PWD/lumpy directory.${NC}"
+  rm -rf pindel
+fi 
 
 mkdir pindel
 cd pindel
 
-echo -e ${NC}
 
 #Alignment using bwa
 export CX_SAM=alignments.bwa.sam
 export CX_BAM=alignments.bwa.bam
-echo -e "[+] Run bwa mem"
+echo -e "${LCY}[+] Run bwa mem${NC}"
 urun "bwa mem $CX_REFERENCE $CX_READS_1 $CX_READS_2 > $CX_SAM"
-echo -e "[+] Run samtools view"
+echo -e "${LCY}[+] Run samtools view${NC}"
 urun "samtools view -S -b $CX_SAM > $CX_BAM"
 
 #Preprocessing with samtools
 export CX_BAM_SORTED=alignments.bwa.sorted
-echo -e "[+] Run samtools sort"
+echo -e "${LCY}[+] Run samtools sort${NC}"
 urun "samtools sort $CX_BAM -o $CX_BAM_SORTED"
 
 export CX_BAM_SORTED=alignments.bwa.sorted.bam #samtools adds a .bam to the output file
 export CX_BAM_BAI=alignments.bwa.sorted.bam.bai
-echo -e "[+] Run samtools index"
+echo -e "${LCY}[+] Run samtools index${NC}"
 urun "samtools index $CX_BAM_SORTED $CX_BAM_BAI"
 
 #Running pindel
@@ -126,43 +90,42 @@ export CX_PINDEL_DIR=out.pindel
 export CX_PINDEL_OUT=out.pindel
 export CX_PINDEL_VCF_DIR=out.vcf
 export CX_PINDEL_VCF_OUT=out.vcf
-echo -e "[+] Run pindel"
+echo -e "${LCY}[+] Run pindel${NC}"
 mkdir -p $CX_PINDEL_DIR
 urun "pindel -f $CX_REFERENCE -i <( echo $CX_BAM_SORTED $CX_READ_LENGTH sample) -o ${CX_PINDEL_DIR}/${CX_PINDEL_OUT}"
 
 mkdir -p ${CX_PINDEL_VCF_DIR}
-echo -e "[+] Run pindel2vcf"
+echo -e "${LCY}[+] Run pindel2vcf${NC}"
 urun "pindel2vcf -co 2 -P ${CX_PINDEL_DIR}/${CX_PINDEL_OUT} -r $CX_REFERENCE -R yeast -d 20220713 -v ${CX_PINDEL_VCF_DIR}/${CX_PINDEL_VCF_OUT}"
 
 cd ${CX_PINDEL_VCF_DIR} || exit
 
-echo -e "[+] Run awk - replacement"
+echo -e "${LCY}[+] Run awk - replacement${NC}"
 awk ' 
 /^##/ {print}
 /^.*<RPL>/ {print}
 ' ${CX_PINDEL_VCF_OUT} > replacement.vcf
 
-echo -e "[+] Run awk - duplication"
+echo -e "${LCY}[+] Run awk - duplication${NC}"
 awk '
 /^##/ {print}
 /^.*<DUP:TANDEM>/ {print}
 ' ${CX_PINDEL_VCF_OUT} > duplication.vcf
 
-echo -e "[+] Run awk - deletion"
+echo -e "${LCY}[+] Run awk - deletion${NC}"
 awk '
 /^##/ {print}
 /^.*<DEL>/ {print}
 ' ${CX_PINDEL_VCF_OUT} > deletion.vcf
 
-echo -e "[+] Run awk - inversion"
+echo -e "${LCY}[+] Run awk - inversion${NC}"
 awk '
 /^##/ {print}
 /^.*<INV>/ {print}
 ' ${CX_PINDEL_VCF_OUT} > inversion.vcf
 
-echo -e "[+] Run awk - insertion"
+echo -e "${LCY}[+] Run awk - insertion${NC}"
 awk '
 /^##/ {print}
 /^.*<INS>/ {print}
 ' ${CX_PINDEL_VCF_OUT} > insertion.vcf
-
