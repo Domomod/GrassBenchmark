@@ -64,7 +64,7 @@ if [[ -d pindel  ]] && [[ ! -z ${CX_ALLOW_OVERWITE+x} ]]; then
 fi 
 
 mkdir pindel
-cd pindel
+d pindel
 
 
 #Alignment using bwa
@@ -90,6 +90,8 @@ export CX_PINDEL_DIR=out.pindel
 export CX_PINDEL_OUT=out.pindel
 export CX_PINDEL_VCF_DIR=out.vcf
 export CX_PINDEL_VCF_OUT=out.vcf
+export CX_PINDEL_BED_DIR=out.bed
+
 echo -e "${LCY}[+] Run pindel${NC}"
 mkdir -p $CX_PINDEL_DIR
 urun "pindel -f $CX_REFERENCE -i <( echo $CX_BAM_SORTED $CX_READ_LENGTH sample) -o ${CX_PINDEL_DIR}/${CX_PINDEL_OUT}"
@@ -98,34 +100,49 @@ mkdir -p ${CX_PINDEL_VCF_DIR}
 echo -e "${LCY}[+] Run pindel2vcf${NC}"
 urun "pindel2vcf -co 2 -P ${CX_PINDEL_DIR}/${CX_PINDEL_OUT} -r $CX_REFERENCE -R yeast -d 20220713 -v ${CX_PINDEL_VCF_DIR}/${CX_PINDEL_VCF_OUT}"
 
+echo -e "${LCY}[+] Step into ${CX_PINDEL_VCF_DIR} ${NC}"
 cd ${CX_PINDEL_VCF_DIR} || exit
 
 echo -e "${LCY}[+] Run awk - replacement${NC}"
 awk ' 
-/^##/ {print}
+/^#/ {print}
 /^.*<RPL>/ {print}
 ' ${CX_PINDEL_VCF_OUT} > replacement.vcf
 
 echo -e "${LCY}[+] Run awk - duplication${NC}"
 awk '
-/^##/ {print}
+/^#/ {print}
 /^.*<DUP:TANDEM>/ {print}
 ' ${CX_PINDEL_VCF_OUT} > duplication.vcf
 
 echo -e "${LCY}[+] Run awk - deletion${NC}"
 awk '
-/^##/ {print}
+/^#/ {print}
 /^.*<DEL>/ {print}
 ' ${CX_PINDEL_VCF_OUT} > deletion.vcf
 
 echo -e "${LCY}[+] Run awk - inversion${NC}"
 awk '
-/^##/ {print}
+/^#/ {print}
 /^.*<INV>/ {print}
 ' ${CX_PINDEL_VCF_OUT} > inversion.vcf
 
 echo -e "${LCY}[+] Run awk - insertion${NC}"
 awk '
-/^##/ {print}
+/^#/ {print}
 /^.*<INS>/ {print}
 ' ${CX_PINDEL_VCF_OUT} > insertion.vcf
+
+echo -e "${LCY}[+] Step out of ${CX_PINDEL_VCF_DIR} to $(realpath ..) ${NC}"
+cd .. || exit
+
+shopt -s extglob
+
+
+echo -e "${LCY}[+] Converting ${CX_PINDEL_VCF_DIR} to ${CX_PINDEL_VCF_DIR} ${NC}"
+
+for FILE in $(cd ${CX_PINDEL_VCF_DIR}; ls !(out).vcf); do
+    
+    NAME=${FILE%.vcf}.bed    
+    GrassSV.py utils csv2bed -i ${CX_PINDEL_VCF_DIR}/${FILE} -o ${CX_PINDEL_BED_DIR}/${NAME}
+done 
