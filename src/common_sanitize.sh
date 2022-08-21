@@ -23,6 +23,7 @@ if [ ! -f ${CX_REFERENCE} ] || [ ! -f ${CX_READS_1} ] || [ ! -f ${CX_READS_2} ];
     [ ! -f ${CX_READS_2}   ] && [ ! -z ${CX_READS_2}   ] && echo -e "\t     Path: ${CX_READS_2}"
 
     echo -e ${NC}
+    CX_BENCHMARK_INPUT_ERROR=true
 fi
 
 if [ ! -z ${CX_BENCHMARK_INPUT_ERROR} ] && [ ${CX_BENCHMARK_INPUT_ERROR} = true  ]; then

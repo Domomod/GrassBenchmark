@@ -33,6 +33,12 @@ ParseGetOpts( ) {
     l)
       echo -e "Read length: \"$OPTARG\""
       CX_READ_LENGTH=$OPTARG;;
+    L)
+      echo -e "Genome length file: \"$OPTARG\""
+      CX_REFERENCE_LENGTH=$OPTARG;;
+    I)
+      echo -e "Genome index file: \"$OPTARG\""
+      CX_INDEX=$OPTARG;;
     h)
       Help
 	    exit 0
