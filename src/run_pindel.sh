@@ -63,8 +63,8 @@ if [[ -d pindel  ]] && [[ ! -z ${CX_ALLOW_OVERWITE+x} ]]; then
   rm -rf pindel
 fi 
 
-mkdir pindel
-d pindel
+#mkdir pindel
+cd pindel
 
 
 #Alignment using bwa
@@ -93,12 +93,11 @@ export CX_PINDEL_VCF_OUT=out.vcf
 export CX_PINDEL_BED_DIR=out.bed
 
 echo -e "${LCY}[+] Run pindel${NC}"
-mkdir -p $CX_PINDEL_DIR
-urun "pindel -f $CX_REFERENCE -i <( echo $CX_BAM_SORTED $CX_READ_LENGTH sample) -o ${CX_PINDEL_DIR}/${CX_PINDEL_OUT}"
-
-mkdir -p ${CX_PINDEL_VCF_DIR}
+#mkdir -p $CX_PINDEL_DIR
+#urun "pindel -f $CX_REFERENCE -i <( echo $CX_BAM_SORTED $CX_READ_LENGTH sample) -o ${CX_PINDEL_DIR}/${CX_PINDEL_OUT}"
+#mkdir -p ${CX_PINDEL_VCF_DIR}
 echo -e "${LCY}[+] Run pindel2vcf${NC}"
-urun "pindel2vcf -co 2 -P ${CX_PINDEL_DIR}/${CX_PINDEL_OUT} -r $CX_REFERENCE -R yeast -d 20220713 -v ${CX_PINDEL_VCF_DIR}/${CX_PINDEL_VCF_OUT}"
+#urun "pindel2vcf -co 2 -P ${CX_PINDEL_DIR}/${CX_PINDEL_OUT} -r $CX_REFERENCE -R yeast -d 20220713 -v ${CX_PINDEL_VCF_DIR}/${CX_PINDEL_VCF_OUT}"
 
 echo -e "${LCY}[+] Step into ${CX_PINDEL_VCF_DIR} ${NC}"
 cd ${CX_PINDEL_VCF_DIR} || exit
@@ -106,32 +105,32 @@ cd ${CX_PINDEL_VCF_DIR} || exit
 echo -e "${LCY}[+] Run awk - replacement${NC}"
 awk ' 
 /^#/ {print}
-/^.*<RPL>/ {print}
-' ${CX_PINDEL_VCF_OUT} > replacement.vcf
+/SVTYPE=RPL/ {print}
+' ${CX_PINDEL_VCF_OUT} > replacements.vcf
 
 echo -e "${LCY}[+] Run awk - duplication${NC}"
 awk '
 /^#/ {print}
-/^.*<DUP:TANDEM>/ {print}
-' ${CX_PINDEL_VCF_OUT} > duplication.vcf
+/SVTYPE=DUP/ {print}
+' ${CX_PINDEL_VCF_OUT} > duplications.vcf
 
 echo -e "${LCY}[+] Run awk - deletion${NC}"
 awk '
 /^#/ {print}
-/^.*<DEL>/ {print}
-' ${CX_PINDEL_VCF_OUT} > deletion.vcf
+/SVTYPE=DEL/ {print}
+' ${CX_PINDEL_VCF_OUT} > deletions.vcf
 
 echo -e "${LCY}[+] Run awk - inversion${NC}"
 awk '
 /^#/ {print}
-/^.*<INV>/ {print}
-' ${CX_PINDEL_VCF_OUT} > inversion.vcf
+/SVTYPE=INV/ {print}
+' ${CX_PINDEL_VCF_OUT} > inversions.vcf
 
 echo -e "${LCY}[+] Run awk - insertion${NC}"
 awk '
 /^#/ {print}
-/^.*<INS>/ {print}
-' ${CX_PINDEL_VCF_OUT} > insertion.vcf
+/SVTYPE=INS/ {print}
+' ${CX_PINDEL_VCF_OUT} > insertions.vcf
 
 echo -e "${LCY}[+] Step out of ${CX_PINDEL_VCF_DIR} to $(realpath ..) ${NC}"
 cd .. || exit
@@ -141,8 +140,12 @@ shopt -s extglob
 
 echo -e "${LCY}[+] Converting ${CX_PINDEL_VCF_DIR} to ${CX_PINDEL_VCF_DIR} ${NC}"
 
+rm -f ${CX_PINDEL_BED_DIR}/breakpoints.bed
 for FILE in $(cd ${CX_PINDEL_VCF_DIR}; ls !(out).vcf); do
     
     NAME=${FILE%.vcf}.bed    
     GrassSV.py utils csv2bed -i ${CX_PINDEL_VCF_DIR}/${FILE} -o ${CX_PINDEL_BED_DIR}/${NAME}
+    awk -v record=${FILE%.vcf} '
+    /^.*/ {printf  "%s %s %s %s_%s_l\n%s %s %s %s_%s_r\n", $1, $2, $2+1, record, $4, $1, $3, $3+1, record, $4}
+    ' ${CX_PINDEL_BED_DIR}/${NAME} >> ${CX_PINDEL_BED_DIR}/breakpoints.bed
 done 

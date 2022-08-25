@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-if [[ ":${PATH}:" != *":${SCRIPT_DIR}:"* ]]; then
+if [[ ":${PATH}:" != *":${SCRIPT_DIR}:"* ]] ; then
   echo -e "${B_RED}[ERROR] Please add \"${SCRIPT_DIR}\" to your path and run the script again.${NC}"
   exit 1
 fi
@@ -68,8 +68,8 @@ echo -e "${LCY}[+] Creating lumpy directory [PWD is \"${PWD}\"]${NC}"
 echo -e "${LCY}[+] Going into lumpy directory [PWD is \"${PWD}\"]${NC}"
 cd lumpy
 
-echo -e "${LCY}[+] Running speedseq align [PWD is \"${PWD}\"]${NC}"
-#urun "speedseq align -R '@RG\tID:id\tSM:sample\tLB:lib' $CX_REFERENCE $CX_READS_1 $CX_READS_2"
+#echo -e "${LCY}[+] Running speedseq align [PWD is \"${PWD}\"]${NC}"
+##urun "speedseq align -R '@RG\tID:id\tSM:sample\tLB:lib' $CX_REFERENCE $CX_READS_1 $CX_READS_2"
 
 export CX_READS_BAM=${CX_READS_1##*/}.bam
 export CX_DISCORDANTS=${CX_READS_1##*/}.splitters.bam
@@ -91,17 +91,17 @@ awk '
 /^.*SVTYPE=BND/ {print}
 ' ${CX_LUMPY_VCF_OUT} > bnds.vcf
 
-#echo -e "${LCY}[+] Run awk - duplication${NC}"
-#awk '
-#/^#/ {print}
-#/^.*SVTYPE=DUP:TANDEM/ {print}
-#' ${CX_LUMPY_VCF_OUT} > duplications.vcf
+echo -e "${LCY}[+] Run awk - duplication${NC}"
+awk '
+/^#/ {print}
+/^.*SVTYPE=DUP:TANDEM/ {print}
+' ${CX_LUMPY_VCF_OUT} > duplications.vcf
 
 echo -e "${LCY}[+] Run awk - duplication${NC}"
 awk '
 /^#/ {print}
 /^.*SVTYPE=DUP/ {print}
-' ${CX_LUMPY_VCF_OUT} > duplications.vcf
+' ${CX_LUMPY_VCF_OUT} >> duplications.vcf
 
 echo -e "${LCY}[+] Run awk - deletion${NC}"
 awk '
@@ -135,10 +135,14 @@ shopt -s extglob
 
 echo -e "${LCY}[+] Converting ${CX_LUMPY_VCF_DIR} to ${CX_PINDEL_VCF_DIR} ${NC}"
 
+rm -f ${CX_LUMPY_BED_DIR}/breakpoints.bed
 for FILE in $(cd ${CX_LUMPY_VCF_DIR}; ls !(out).vcf); do
     
     NAME=${FILE%.vcf}.bed    
     GrassSV.py utils csv2bed -i ${CX_LUMPY_VCF_DIR}/${FILE} -o ${CX_LUMPY_BED_DIR}/${NAME}
+    awk -v record=${FILE%.vcf} '
+    /^.*/ {printf  "%s %s %s %s_%s_l\n%s %s %s %s_r\n", $1, $2, $2+1, record, $4, $1, $3, $3+1, $4}
+    ' ${CX_LUMPY_BED_DIR}/${NAME} >> ${CX_LUMPY_BED_DIR}/breakpoints.bed
 done 
 
 echo 
