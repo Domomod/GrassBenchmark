@@ -47,6 +47,7 @@ ParseGetOpts( ) {
       CX_ALLOW_OVERWITE=true
       ;;
     ?)
+      echo -e "Unkown arg: [$OPTION]"
       Help
       exit 1
       ;;

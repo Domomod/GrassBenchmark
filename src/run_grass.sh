@@ -30,7 +30,7 @@ Help()
 
 #[CONFUSING] getopt's ':' means "no argument" for LONG options, and "requires argument" for SHORT option 
 LONG_LIST=("allow-overwrite:")
-SHORT_LIST=("g:l:i:r:R:h")
+SHORT_LIST=("g:L:I:r:R:h")
 
 opts=$(getopt \
   --longoptions "$(printf "%s:," "${LONG_LIST[@]}")" \
@@ -80,7 +80,15 @@ GrassSV.py run_standalone -g ${CX_REFERENCE} -i ${CX_INDEX} -l ${CX_REFERENCE_LE
 echo -e "${LCY}[+] Cleanup results directory [PWD is \"${PWD}\"]${NC}"
 mv results/detectedSVs/* results/
 rmdir results/detectedSVs
-mv results/filter_inversions.bed results/inversions.bed
 
 echo -e "${LCY}[+] Run GrassSV.py utils check_sv [PWD is \"${PWD}\"]${NC}"
 GrassSV.py utils check_sv -g ../generated_mutations/ -d results/ > grass_sv.results.quality
+
+shopt -s extglob
+rm -f results/breakpoints.bed
+for FILE in $(cd results; ls !(breakpoints).bed); do
+    NAME=${FILE}    
+    awk -v record=${FILE%.bed} '
+    /^.*/ {printf  "%s %s %s %s_%s_l\n%s %s %s %s_%s_r\n", $1, $2, $2+1, record, $4, $1, $3, $3+1, record, $4}
+    ' results/${NAME} >> results/breakpoints.bed
+done 

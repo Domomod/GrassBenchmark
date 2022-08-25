@@ -4,132 +4,88 @@ RED='\033[0;31m'
 LCY='\033[1;36m' # Light Cyan
 NC='\033[0m' # No Color
 
+
+. common_color.sh
+
 Help()
 {
    # Display Help
    echo -e "${LCY}This will run all steps for gridss pipeline in a single process."
-   echo -e "Produced output will be stored in ${PWD}/gridss"
+   echo -e "Prouced output will be stored in ${PWD}/lumpy"
    echo -e 
-   echo -e "Syntax: $0 [-g|a|r|R|s|o|h] - provide either (-r and -R) or -s"
+   echo -e "Syntax: $0 [-g|r|R|l|h]"
    echo -e "options:"
    echo -e "g     Path to genome (fasta format)"
-   echo -e "a     Assembly (bam format)"
    echo -e "r     Path to reads1 (fastq format)"
    echo -e "R     Path to reads2 (fastq format)"
-   echo -e "s     Alignment sorted (bam format)"
-   echo -e "o     Output file name (vcf.gz format)"
    echo -e "h     Show this helpe message"
    echo -e ${NC}
 }
 
+. common_parse.sh
 
-if [[ $# -eq 0 ]] ; then
-    echo -e "${RED}[Warning] No input parameters provided. Displaying help message:${NC}"
-    Help
-    exit 0
-fi
+#[CONFUSING] getopt's ':' means "no argument" for LONG options, and "requires argument" for SHORT option 
+LONG_LIST=("allow-overwrite:")
+SHORT_LIST=("g:i:r:R:h")
 
-while getopts 'g:a:r:R:s:o:h' OPTION; do
-  case "$OPTION" in
-    g)
-      echo "Genome file: \"$OPTARG\""
-      GENOME_FILE_PATH=$OPTARG;;
-    a)
-      echo "Assembly file: \"$OPTARG\""
-      ASSEMBLY_FILE_PATH=$OPTARG;;
-    r)
-      echo "Reads1 file: \"$OPTARG\""
-      READS1_FILE_PATH=$OPTARG;;
-    R)
-      echo "Reads2 file: \"$OPTARG\""
-      READS2_FILE_PATH=$OPTARG;;
-    s)
-      echo "Alignment sorted file: \"$OPTARG\""
-      ALIGNMENT_FILE_PATH=$OPTARG;;
-    o)
-      echo "Output file name: \"$OPTARG\""
-      OUTPUT_NAME=$OPTARG;;
-    h)
-      Help
-	  exit 0
-      ;;
-    ?)
-      Help
-      exit 1
-      ;;
-  esac
+opts=$(getopt \
+  --longoptions "$(printf "%s:," "${LONG_LIST[@]}")" \
+  --name "$(basename "$0")" \
+  --options "${SHORT_LIST[@]}" \
+  -- "$@"
+) || exit
+
+eval set --$opts
+
+while [[ $# -gt 0 ]]; do
+    OPTION=${1##-}
+    OPTION=${OPTION##-}
+    OPTARG=$2
+
+    ParseGetOpts
+    
+    if [[ ! -z ${PARSE_BREAK} ]] && [[ ${PARSE_BREAK} == true ]]; then
+      break
+    fi
+    shift 2
 done
 
-#Sanitize input
-if [ -z ${GENOME_FILE_PATH} ] || [ -z ${ALIGNMENT_FILE_PATH} ] || [ -z ${READS1_FILE_PATH} ] || [ -z ${READS2_FILE_PATH} ] || [ -z ${ASSEMBLY_FILE_PATH} ] || [ -z ${OUTPUT_NAME} ]; then
-    echo -e ${RED}
-    echo "[Warning] Missing required arguments: "
-    [ -z ${GENOME_FILE_PATH} ]           && echo -e "\t[-g] Path to genome (fasta format)"          && CX_BENCHMARK_INPUT_ERROR=true
-    [ -z ${ASSEMBLY_FILE_PATH} ]         && echo -e "\t[-a] Assembly (bam format)"                  && CX_BENCHMARK_INPUT_ERROR=true
-    [ -z ${READS1_FILE_PATH} ]           && echo -e "\t[-r] Path to reads1 (fasta format)"          && CX_BENCHMARK_INPUT_WARN=true
-    [ -z ${READS2_FILE_PATH} ]           && echo -e "\t[-R] Path to reads2 (fasta format)"          && CX_BENCHMARK_INPUT_WARN=true
-    [ -z ${ALIGNMENT_FILE_PATH} ]        && echo -e "\t[-s] Path to alignment sorted (bam format)"  && CX_BENCHMARK_INPUT_WARN=true
-    [ -z ${OUTPUT_NAME} ]                && echo -e "\t[-o] Output file name (vcf.gz format)"       && CX_BENCHMARK_INPUT_ERROR=true
-    echo -e ${NC}
-fi
-
-if [ -f ${GENOME_FILE_PATH} ] || [ -f ${ASSEMBLY_FILE_PATH} ] || [ -f ${ALIGNMENT_FILE_PATH} ] || [ -f ${READS1_FILE_PATH} ] || [ -f ${READS2_FILE_PATH} ]; then
-    echo -e ${RED}
-    echo "[Warning] Following files do not exist: "
-    [ ! -f ${GENOME_FILE_PATH} ] && [ ! -z ${GENOME_FILE_PATH} ] \
-        && echo -e "\t[-g] Path to genome (fasta format)" \
-        && echo -e "\t\t\tPath: ${GENOME_FILE_PATH}"
-
-    [ ! -f ${ALIGNMENT_FILE_PATH} ] && [ ! -z ${ALIGNMENT_FILE_PATH}   ] \
-        && echo -e "\t[-af] Path to alignment (bam format)" \
-        && echo -e "\t\t\tPath: ${ALIGNMENT_FILE_PATH}"
-
-    [ ! -f ${READS1_FILE_PATH} ] && [ ! -z ${READS1_FILE_PATH} ] \
-        && echo -e "\t[-r1] Path to reads1 (fasta format)" \
-        && echo -e "\t\t\tPath: ${READS1_FILE_PATH}"
-
-    [ ! -f ${READS2_FILE_PATH} ] && [ ! -z ${READS2_FILE_PATH} ] \
-        && echo -e "\t[-r2] Path to reads2 (fasta format)" \
-        && echo -e "\t\t\tPath: ${READS2_FILE_PATH}"
-
-    [ ! -f ${ASSEMBLY_FILE_PATH}   ] && [ ! -z ${ASSEMBLY_FILE_PATH} ] \
-        && echo -e "\t[-as] Path to assembly (bam format)" \
-        && echo -e "\t\t\tPath: ${ASSEMBLY_FILE_PATH}"
-    
-    echo -e ${NC} 
-fi
-
-if [ ${CX_BENCHMARK_INPUT_ERROR} ]; then
-    Help
-    echo -e "Stopping"
-    exit 1
-fi
-
-if [ ${CX_BENCHMARK_INPUT_WARN} ]; then
-    Help
-    echo -e "Continuing..."
-fi
-
-
-GENOME_FILE_PATH=$(realpath ${GENOME_FILE_PATH})
-ALIGNMENT_FILE_PATH=$(realpath ${ALIGNMENT_FILE_PATH})
-READS1_FILE_PATH=$(realpath ${READS1_FILE_PATH})
-READS2_FILE_PATH=$(realpath ${READS2_FILE_PATH})
-ASSEMBLY_FILE_PATH=$(realpath ${ASSEMBLY_FILE_PATH})
-OUTPUT_FILE_PATH=$(realpath ${OUTPUT_NAME})
-
-echo -e "Genome file (realpath): \"$GENOME_FILE_PATH\""
-echo -e "Alignment file (realpath): \"$ALIGNMENT_FILE_PATH\""
-echo -e "Read1 file (realpath): \"$READS1_FILE_PATH\""
-echo -e "Read2 file (realpath): \"$READS2_FILE_PATH\""
-echo -e "Assembly file (realpath): \"$ASSEMBLY_FILE_PATH\""
-echo -e "Output file (realpath): \"$OUTPUT_FILE_PATH\""
+. common_sanitize.sh
 
 #Exit on error
 set -o errexit
 
-mkdir gridss && cd gridss || exit 1
+if [[ -d gridss  ]] && [[ ! -z ${CX_ALLOW_OVERWITE+x} ]]; then
+  echo -e "${YELLOW}[Warning] Flag \"allow-overwite\" set to true, recurisvely removing $PWD/gridss directory.${NC}"
+  rm -rf gridss
+fi 
+
+mkdir gridss || exit 1
+cd gridss || exit 1
 
 # TODO: add running BWA
 
-./urun "gridss --reference ${GENOME_FILE_PATH} --output ${OUTPUT_FILE_PATH} --assembly ${ALIGNMENT_FILE_PATH}"
+#Alignment using bwa
+export CX_SAM=alignments.bwa.sam
+export CX_BAM=alignments.bwa.bam
+echo -e "${LCY}[+] Run bwa mem${NC}"
+urun "bwa mem $CX_REFERENCE $CX_READS_1 $CX_READS_2 > $CX_SAM"
+echo -e "${LCY}[+] Run samtools view${NC}"
+urun "samtools view -S -b $CX_SAM > $CX_BAM"
+
+#Preprocessing with samtools
+export CX_BAM_SORTED=alignments.bwa.sorted
+echo -e "${LCY}[+] Run samtools sort${NC}"
+urun "samtools sort $CX_BAM -o $CX_BAM_SORTED"
+
+export CX_BAM_SORTED=alignments.bwa.sorted.bam #samtools adds a .bam to the output file
+export CX_BAM_BAI=alignments.bwa.sorted.bam.bai
+echo -e "${LCY}[+] Run samtools index${NC}"
+urun "samtools index $CX_BAM_SORTED $CX_BAM_BAI"
+
+export CX_GRIDSS_OUT=gridss.out.vcf.gz
+urun "gridss --reference ${CX_REFERENCE} --output ${CX_GRIDSS_OUT} ${CX_BAM_SORTED}"
+
+awk '
+/SVTYPE=BND/ {printf  "%s %s %s %s\n", $1, $2, $2+1, $3}
+' output.vcf > breakpoints.bed
