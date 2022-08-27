@@ -55,16 +55,14 @@ done
 
 . common_sanitize.sh
 
-#Exit on error
-set -o errexit
 
 if [[ -d pindel  ]] && [[ ! -z ${CX_ALLOW_OVERWITE+x} ]]; then
   echo -e "${YELLOW}[Warning] Flag \"allow-overwite\" set to true, recurisvely removing $PWD/lumpy directory.${NC}"
   rm -rf pindel
 fi 
 
-#mkdir pindel
-cd pindel
+mkdir pindel || exit 1
+cd pindel || exit 1
 
 
 #Alignment using bwa
@@ -93,11 +91,11 @@ export CX_PINDEL_VCF_OUT=out.vcf
 export CX_PINDEL_BED_DIR=out.bed
 
 echo -e "${LCY}[+] Run pindel${NC}"
-#mkdir -p $CX_PINDEL_DIR
-#urun "pindel -f $CX_REFERENCE -i <( echo $CX_BAM_SORTED $CX_READ_LENGTH sample) -o ${CX_PINDEL_DIR}/${CX_PINDEL_OUT}"
-#mkdir -p ${CX_PINDEL_VCF_DIR}
+mkdir -p $CX_PINDEL_DIR
+urun "pindel -f $CX_REFERENCE -i <( echo $CX_BAM_SORTED $CX_READ_LENGTH sample) -o ${CX_PINDEL_DIR}/${CX_PINDEL_OUT}"
+mkdir -p ${CX_PINDEL_VCF_DIR}
 echo -e "${LCY}[+] Run pindel2vcf${NC}"
-#urun "pindel2vcf -co 2 -P ${CX_PINDEL_DIR}/${CX_PINDEL_OUT} -r $CX_REFERENCE -R yeast -d 20220713 -v ${CX_PINDEL_VCF_DIR}/${CX_PINDEL_VCF_OUT}"
+urun "pindel2vcf -co 2 -P ${CX_PINDEL_DIR}/${CX_PINDEL_OUT} -r $CX_REFERENCE -R yeast -d 20220713 -v ${CX_PINDEL_VCF_DIR}/${CX_PINDEL_VCF_OUT}"
 
 echo -e "${LCY}[+] Step into ${CX_PINDEL_VCF_DIR} ${NC}"
 cd ${CX_PINDEL_VCF_DIR} || exit

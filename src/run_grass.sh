@@ -17,8 +17,6 @@ Help()
    echo -e "Syntax: $0 [-g|r|R|l|h]"
    echo -e "options:"
    echo -e "g     Path to genome (fasta format)"
-   echo -e "I     Path to genome index (fai format)"
-   echo -e "L     Path to genome lengths (length format)"
    echo -e "r     Path to reads1 (fastq format)"
    echo -e "R     Path to reads2 (fastq format)"
    echo -e "l     Value of read length"
@@ -30,7 +28,7 @@ Help()
 
 #[CONFUSING] getopt's ':' means "no argument" for LONG options, and "requires argument" for SHORT option 
 LONG_LIST=("allow-overwrite:")
-SHORT_LIST=("g:L:I:r:R:h")
+SHORT_LIST=("g:l:r:R:h")
 
 opts=$(getopt \
   --longoptions "$(printf "%s:," "${LONG_LIST[@]}")" \
