@@ -39,5 +39,5 @@ for SCRIPT in $(cd ${SCRIPT_DIR}; ls run_!(all).sh); do
     C=${SCRIPT%.sh}
     echo -e "${LCY}[+] Calling ${SCRIPT}${NC}"
 
-    ${SCRIPT} "$@"
+    ${SCRIPT} "$@" --allow-overwrite || true #Ignore errors while dispatching
 done

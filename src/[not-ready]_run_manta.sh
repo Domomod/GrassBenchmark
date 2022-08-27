@@ -64,7 +64,7 @@ if [[ -d manta  ]] && [[ ! -z ${CX_ALLOW_OVERWITE+x} ]]; then
 fi
 
 mkdir manta
-d manta
+cd manta
 
 
 #Alignment using bwa
@@ -99,47 +99,3 @@ gzip -dv results/variants/candidateSV.vcf.gz
 cp results/variants/candidateSV.vcf results.vcf
 
 #AWK - TO DO
-
-echo -e "${LCY}[+] Run awk - replacement${NC}"
-awk '
-/^#/ {print}
-/^.*<RPL>/ {print}
-' ${CX_PINDEL_VCF_OUT} > replacement.vcf
-
-echo -e "${LCY}[+] Run awk - duplication${NC}"
-awk '
-/^#/ {print}
-/^.*<DUP:TANDEM>/ {print}
-' ${CX_PINDEL_VCF_OUT} > duplication.vcf
-
-echo -e "${LCY}[+] Run awk - deletion${NC}"
-awk '
-/^#/ {print}
-/^.*<DEL>/ {print}
-' ${CX_PINDEL_VCF_OUT} > deletion.vcf
-
-echo -e "${LCY}[+] Run awk - inversion${NC}"
-awk '
-/^#/ {print}
-/^.*<INV>/ {print}
-' ${CX_PINDEL_VCF_OUT} > inversion.vcf
-
-echo -e "${LCY}[+] Run awk - insertion${NC}"
-awk '
-/^#/ {print}
-/^.*<INS>/ {print}
-' ${CX_PINDEL_VCF_OUT} > insertion.vcf
-
-echo -e "${LCY}[+] Step out of ${CX_PINDEL_VCF_DIR} to $(realpath ..) ${NC}"
-cd .. || exit
-
-shopt -s extglob
-
-
-echo -e "${LCY}[+] Converting ${CX_PINDEL_VCF_DIR} to ${CX_PINDEL_VCF_DIR} ${NC}"
-
-for FILE in $(cd ${CX_PINDEL_VCF_DIR}; ls !(out).vcf); do
-
-    NAME=${FILE%.vcf}.bed
-    GrassSV.py utils csv2bed -i ${CX_PINDEL_VCF_DIR}/${FILE} -o ${CX_PINDEL_BED_DIR}/${NAME}
-done

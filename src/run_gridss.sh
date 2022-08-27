@@ -26,7 +26,7 @@ Help()
 
 #[CONFUSING] getopt's ':' means "no argument" for LONG options, and "requires argument" for SHORT option 
 LONG_LIST=("allow-overwrite:")
-SHORT_LIST=("g:i:r:R:h")
+SHORT_LIST=("g:l:r:R:h")
 
 opts=$(getopt \
   --longoptions "$(printf "%s:," "${LONG_LIST[@]}")" \
@@ -83,9 +83,17 @@ export CX_BAM_BAI=alignments.bwa.sorted.bam.bai
 echo -e "${LCY}[+] Run samtools index${NC}"
 urun "samtools index $CX_BAM_SORTED $CX_BAM_BAI"
 
+mkdir -p workdir && cd workdir || exit 1
+
 export CX_GRIDSS_OUT=gridss.out.vcf.gz
-urun "gridss --reference ${CX_REFERENCE} --output ${CX_GRIDSS_OUT} ${CX_BAM_SORTED}"
+urun "gridss --reference ${CX_REFERENCE} --output ${CX_GRIDSS_OUT} ../${CX_BAM_SORTED}"
+gzip -d ${CX_GRIDSS_OUT}
+export CX_GRIDSS_OUT=${CX_GRIDSS_OUT%.gz}
+
+
+cd ..
+mkdir -p results
 
 awk '
 /SVTYPE=BND/ {printf  "%s %s %s %s\n", $1, $2, $2+1, $3}
-' output.vcf > breakpoints.bed
+' workdir/${CX_GRIDSS_OUT} > results/breakpoints.bed

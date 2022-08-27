@@ -57,19 +57,19 @@ done
 #Exit on error
 set -o errexit
 
-#if [[ -d lumpy  ]] && [[ ! -z ${CX_ALLOW_OVERWITE+x} ]]; then
-#  echo -e "${YELLOW}[Warning] Flag \"allow-overwite\" set to true, recurisvely removing $PWD/lumpy directory.${NC}"
-#  rm -rf lumpy
-#fi 
+if [[ -d lumpy  ]] && [[ ! -z ${CX_ALLOW_OVERWITE+x} ]]; then
+  echo -e "${YELLOW}[Warning] Flag \"allow-overwite\" set to true, recurisvely removing $PWD/lumpy directory.${NC}"
+  rm -rf lumpy
+fi 
 
 echo -e "${LCY}[+] Creating lumpy directory [PWD is \"${PWD}\"]${NC}"
-#mkdir lumpy
+mkdir lumpy
 
 echo -e "${LCY}[+] Going into lumpy directory [PWD is \"${PWD}\"]${NC}"
 cd lumpy
 
-#echo -e "${LCY}[+] Running speedseq align [PWD is \"${PWD}\"]${NC}"
-##urun "speedseq align -R '@RG\tID:id\tSM:sample\tLB:lib' $CX_REFERENCE $CX_READS_1 $CX_READS_2"
+echo -e "${LCY}[+] Running speedseq align [PWD is \"${PWD}\"]${NC}"
+urun "speedseq align -R '@RG\tID:id\tSM:sample\tLB:lib' $CX_REFERENCE $CX_READS_1 $CX_READS_2"
 
 export CX_READS_BAM=${CX_READS_1##*/}.bam
 export CX_DISCORDANTS=${CX_READS_1##*/}.splitters.bam
@@ -80,7 +80,7 @@ export CX_LUMPY_BED_DIR=out.bed
 
 echo -e "${LCY}[+] Running lumpyexpress [PWD is \"${PWD}\"]${NC}"
 mkdir -p ${CX_LUMPY_VCF_DIR} 
-#urun "lumpyexpress -B ${CX_READS_BAM} -S ${CX_SPLITTERS} -D ${CX_DISCORDANTS} -o ${CX_LUMPY_VCF_DIR}/${CX_LUMPY_VCF_OUT}"
+urun "lumpyexpress -B ${CX_READS_BAM} -S ${CX_SPLITTERS} -D ${CX_DISCORDANTS} -o ${CX_LUMPY_VCF_DIR}/${CX_LUMPY_VCF_OUT}"
 
 echo -e "${LCY}[+] Step into ${CX_LUMPY_VCF_DIR}  [PWD is \"${PWD}\"]${NC}"
 cd ${CX_LUMPY_VCF_DIR} || exit
