@@ -25,6 +25,7 @@ for DATA_DIR in $(ls -d fastadna_*); do
     '# GRIDSS #\n' \
     '##########\n' $NC
 
+    GrassSV.py utils check_sv -g generated_mutations -d ${CX_GRIDSS_DIR}
     GrassSV.py utils check_sv -g generated_mutations -d ${CX_GRIDSS_DIR} --bp_mode
 
     echo -e $LCY   \

@@ -1,0 +1,91 @@
+#!/bin/bash
+
+if [[ $# -lt 1 ]]
+then
+    echo "Usage: $0 \"[command to be executed]\""
+    exit 1
+fi
+
+if [[ "$1" == "install" ]]
+then
+    urun 2>/dev/null
+    if [[ $? -eq 127 ]]
+    then
+        echo "urun is not in the PATH"
+        echo "copying to ~/bin/"
+        mkdir -p ${HOME}/bin
+        cp $0 ${HOME}/bin
+        urun 2>/dev/null
+        if [[ $? -eq 127 ]]
+        then
+           echo "urun still not in PATH"
+           echo "make sure ~/bin/ is in PATH!"
+           exit 1
+        fi 
+    fi
+    udocker 2>/dev/null
+    if [[ $? -eq 127 ]]
+    then
+        echo "udocker is not in the PATH"
+        echo "trying to download udocker"
+        curl https://raw.githubusercontent.com/indigo-dc/udocker/master/udocker.py > ~/bin/udocker
+        if [[ $? -ne 0 ]]
+        then
+            echo "could not download udocker to ~/bin/udocker"
+            exit 1
+        fi
+        chmod 700 ~/bin/udocker
+        udocker 2>/dev/null
+        if [[ $? -eq 127 ]]
+        then
+            echo "Although udocker is downloaded to ~/bin/ it's still causes issues when trying to run"
+            echo "make sure ~/bin/ is in PATH! Also make sure python2 is installed"
+            exit 1
+        fi
+        if [[ ! -d ${HOME}/.udocker ]]
+        then
+            udocker install
+            if [[ ! -d ${HOME}/.udocker ]]
+            then
+                echo "There might have been problems with udocker installation"
+                echo "Have you changed the UDOCKER_DIR env variable?"
+            fi 
+        fi
+    fi
+    exit 0
+fi
+
+read -r -a CMD <<< "$1"
+EXE=${CMD[0]}
+CMD=( "${CMD[@]:1}" )
+if [[ "$(udocker ps | grep cuda-${EXE})" == "" ]]
+then
+    if [[ "$LOCAL_REPO" != "" ]]
+    then
+        udocker  --allow-root load -i "${LOCAL_REPO}/${EXE}.tar" cuda-${EXE} 
+        udocker  --allow-root create --name=cuda-${EXE} cuda-${EXE}:latest
+    else
+        wget "https://cuda.cs.put.poznan.pl/${EXE}.tar" --no-check-certificate
+        udocker  --allow-root load -i ${EXE}.tar cuda-${EXE} 
+        rm -rf ${EXE}.tar
+        udocker  --allow-root create --name=cuda-${EXE} cuda-${EXE}:latest
+    fi 
+fi
+
+
+VOLUME_MAP=( "--volume=${PWD}:/data/" )
+PREF=( )
+for FP in "${CMD[@]}"
+do
+   
+   if [[ -f "${FP}" ]] 
+   then 
+       VOLUME_MAP=( "--volume=$(dirname $(readlink -f "${FP}")):/${EXE}-prefix$(dirname $(readlink -f "${FP}"))" "${VOLUME_MAP[@]}" ) 
+       PREF=( "${PREF[@]}" "/${EXE}-prefix$(dirname $(readlink -f "${FP}"))/$(basename "${FP}")" )
+   else
+       PREF=( "${PREF[@]}" "${FP}" )
+   fi
+done
+
+echo -e udocker run "${VOLUME_MAP[@]}" cuda-${EXE} /bin/bash -c "cd /data/ && /usr/bin/time -v ${EXE} ${PREF[*]}"
+udocker --allow-root run "${VOLUME_MAP[@]}" cuda-${EXE} /bin/bash -c "cd /data/ && /usr/bin/time -v ${EXE} ${PREF[*]}"

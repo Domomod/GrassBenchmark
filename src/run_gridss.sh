@@ -69,6 +69,7 @@ cd gridss || exit 1
 export CX_SAM=alignments.bwa.sam
 export CX_BAM=alignments.bwa.bam
 echo -e "${LCY}[+] Run bwa mem${NC}"
+echo -e urun "bwa mem $CX_REFERENCE $CX_READS_1 $CX_READS_2 > $CX_SAM"
 urun "bwa mem $CX_REFERENCE $CX_READS_1 $CX_READS_2 > $CX_SAM"
 echo -e "${LCY}[+] Run samtools view${NC}"
 urun "samtools view -S -b $CX_SAM > $CX_BAM"
