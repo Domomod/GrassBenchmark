@@ -1,0 +1,10 @@
+version: '3'
+services:
+  grasssv:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    volumes:
+      - ./GrassBenchmark:/GrassBenchmark
+      - ./GrassSV:/GrassSV
+      - ./giab:/giab
