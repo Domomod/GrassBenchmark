@@ -6,7 +6,7 @@ RUN \
     python3-dev python3 python3-pip git \
     samtools bowtie2 && \
   git clone https://github.com/Domomod/GrassSV.git && \
-  pip3 install numpy pandas argcomplete quast && \
+  pip3 install numpy pandas argcomplete quast --break-system-packages && \
   git clone https://github.com/swacisko/ALGA.git && \
   mkdir ALGA/build && \
   cd ALGA/build && \
